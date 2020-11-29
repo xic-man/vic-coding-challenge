@@ -1,6 +1,7 @@
 # code from https://github.com/timschott/gpt-2
 import numpy as np
 import tensorflow.compat.v1 as tf
+tf.get_logger().setLevel('ERROR')
 
 def default_hparams():
     hparams = {}
