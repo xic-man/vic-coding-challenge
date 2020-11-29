@@ -476,6 +476,6 @@ def generate_poem(all_data, poem_settings):
             if testing_no_of_words >= 200:
                 break
             no_of_words = testing_no_of_words
-            AI_output += i
+            AI_output += i + '\n'
         print(AI_output)
     print(f"\nAbove poem is {no_of_words} words long")
