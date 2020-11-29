@@ -1,261 +1,485 @@
-from functions import get_data, generate_poem
-import random
-import math
+from urllib.request import Request, urlopen  # For requesting raw html data
+from datamuse import datamuse  # For generating rhyming words
+from bs4 import BeautifulSoup  # For formatting and obtainging html data
+import regex as re  # For obtaining specific string of text in raw data
+import datetime  # For formatting and manipulating dates
+from dateutil.relativedelta import relativedelta  # To calculate age of given person
+import random  # To shuffle lists and select at random from a list
+import wikipedia  # To obtain the gender of the person
+from num2words import num2words  # To generate a worded version of their birth year for rhyming
 
-# CRITERIA:
-# display whether they are currently living or dead
-# display their current age or their age at the time of death, correct to within +/- 1 year
-# display their gender as per the article
-# display their profession
-# THEN
-# produce an entertaining rhyming poem (minimum 50 words, maximum 200 words) about the same person,
-# using information from the Wikipedia article like their profession
-# Illustrate and handle non-existing articles.
+import json
+import os
+import numpy as np
+import tensorflow.compat.v1 as tf
+tf.get_logger().setLevel('ERROR')
 
-# TODO:
-# Implement AI poem generation
-# FIX EDGECASE FOR André 3000 as it includes an é (\xe9), thus breaking the mozilla/5.0 decoding. code is on lines 176-179
-# FIX DEATHDATE FOR Yoko Ono, currently says 46 years at death, when really she is not dead and 87 years old
-# It is triggering because john lennon died in 1980 and is searching for that. can be fixed by filtering out values contained in brackets
-# Printout is [   Yoko Ono   ,     \xe5\xb0\x8f\xe9\x87\x8e \xe6\xb4\x8b\xe5\xad\x90   \xe3\x82\xaa\xe3\x83\x8e\xe3\x83\xbb\xe3\x83\xa8\xe3\x83\xbc\xe3\x82\xb3    ,       Ono in 2007   ,   Born    ( 1933-02-18 )  18 February 1933  (age 87)    Tokyo ,  Japan    ,   Education   Gakush\xc5\xabin   ,   Alma mater      Gakushuin University    Sarah Lawrence College      ,   Occupation     Artist  peace activist  singer  songwriter     ,    Spouse(s)      Toshi Ichiyanagi  \n    ​   ​ ( m.  1956;  div.  1962) ​  \n   Anthony Cox  \n    ​   ​ ( m.  1962;  div.  1968) ​  \n   John Lennon  \n    ​   ​ ( m.  1969; died 1980) ​   ,   Children  2, including  Sean Lennon   ,    Musical career   ,   Genres   \n   Avant-garde  \n  downtown  \n performance art \n  experimental  \n rock \n pop \n  electronic   \n   ,   Instruments   \n  Vocals \n percussion \n piano \n keyboards  \n   ,    Years active   1961\xe2\x80\x93present  ,   Labels   \n   Apple  \n  Geffen  \n  Polydor  \n  Rykodisc  \n  Manimal Vinyl  \n  Astralwerks  \n Chimera \n  Secretly Canadian   \n   ,    Associated acts    \n   Toshi Ichiyanagi  \n  John Cage  \n  John Lennon  \n  The Beatles  \n  Plastic Ono Band  \n  the Dirty Mac  \n  Sean Lennon   \n   ,   Website    imaginepeace .com    ,     ,   Signature  ,        ]
-# ADD FIX FOR Joseph stalin, as it takes 18 as a year input, as his birthday is stated as Born	Ioseb Besarionis dze Jughashvili[a] 18 December [O.S. 6] 1878
+import model, sample, encoder  # importing the AI functions
 
-print("Victorian coding challenge: Wikipedia based data extraction and poem generation")
 
-print("\nIf program is loading for a long time, try pressing any key\n")
+def get_predicted_text(raw_text, model_name='345M', length=512, batch_size=1, temperature=1, top_k=40, top_p=0.9):
+    """
+    Run the sample_model
+    :model_name=117M : String, which model to use
+    :seed=None : Integer seed for random number generators, fix seed to
+     reproduce results
+    :nsamples=0 : Number of samples to return, if 0, continues to
+     generate samples indefinately.
+    :batch_size=1 : Number of batches (only affects speed/memory).
+    :length=None : Number of tokens in generated text, if None (default), is
+     determined by model hyperparameters
+    :temperature=1 : Float value controlling randomness in boltzmann
+     distribution. Lower temperature results in less random completions. As the
+     temperature approaches zero, the model will become deterministic and
+     repetitive. Higher temperature results in more random completions.
+    :top_k=0 : Integer value controlling diversity. 1 means only 1 word is
+     considered for each step (token), resulting in deterministic completions,
+     while 40 means 40 words are considered at each step. 0 (default) is a
+     special setting meaning no restrictions. 40 generally is a good value.
+    :top_p=0.0 : Float value controlling diversity. Implements nucleus sampling,
+     overriding top_k if set to a value > 0. A good setting is 0.9.
+    """
+    enc = encoder.get_encoder(model_name)
+    hparams = model.default_hparams()
+    with open(os.path.join('models', model_name, 'hparams.json')) as f:
+        dict2 = json.load(f)
+        for key, value in hparams.items():
+            hparams[key] = dict2[key]
 
-while True:
-    print("Following input must be either U (user provided name), r (required names), s (suggested names), or h (help and additional information) ")
-    try:
-        loop_user_input = input("\nWhat people should the script be run with?: ")
-    except EOFError:  # Handling inputs such as ctrl C (^C)
-        print("\nEnd of file condition typed, exiting...")
-        exit()
-    if loop_user_input == "" or loop_user_input.lower()[0] == "u":  # If the user wants to type the people to be run
-        full_name_list = [None]*math.factorial(8)  # Extremely inefficient, generates a list with 40320 None's in it
-        break
-    elif loop_user_input.lower()[0] == "h":
-        print("\nName input command list (case insensitive)")
-        print("  ├────u to set user input, allowing the user to type a name to be parsed into the algorithm")
-        print("  ├────r to run the script with all the names that are required under the competition rules")
-        print("  └────s to run the script with an assortment of names intended to challenge and test the capabilities of the script\n")
+    with tf.Session(graph=tf.Graph()) as sess:
+        context = tf.placeholder(tf.int32, [batch_size, None])
+        output = sample.sample_sequence(
+            hparams=hparams, length=length,
+            context=context,
+            batch_size=batch_size,
+            temperature=temperature, top_k=top_k, top_p=top_p
+        )
 
-    elif loop_user_input.lower()[0] == "r":  # If the user selects only required people to be run
-        full_name_list = [
-            "jacinda ardern",
-            "albert einstein",
-            "serena williams",
-            "franklin roosevelt",
-            "mark viduka",
-            "marie curie"
-        ]
-        break
-    elif loop_user_input.lower()[0] == "s":  # If the user selects suggested people to be run
-        full_name_list = [  # A list of people used to test the capabilities of the script
-            "john lennon",
-            "barack obama",
-            "isaac newton",
-            "john snow",
-            "paul klee",
-            "daniel j. boorstin",
-            "neal gabler",
-            "david letterman",
-            "lebron james",
-            "paris hilton",
-            "srinivasa ramanujan",
-            "guido van rossum",
-            "bjarne stroustrup",
-            "neil degrasse tyson"
-            #  "André 3000"
-        ]
-        break
-    else:
-        print(f"Unsupported command typed ({loop_user_input}), please try again")
-random.shuffle(full_name_list)  # Randomising order of list
+        saver = tf.train.Saver()
+        ckpt = tf.train.latest_checkpoint(os.path.join('models', model_name))
+        saver.restore(sess, ckpt)
 
-# A list of settings to be parsed through the generate_poem function, with default values specified
-poem_settings = {
-    "Poem order": "normal",  # Can be set to either normal or random
-    "AI fill": True,  # Can be True or False
-    "Set poem order": "aaaabbcc",  # User set poem rhyming order
-    # Rhyming settings
-    "Number of words": 10,  # number of words to return
-    "Words to generate": 10,  # if this is larger than no of words, then the output is slightly randomised
-    "Number of syllables": 2  # Default filter is >, so upwards of the specified value
-    }
+        context_tokens = enc.encode(raw_text)
+        out = sess.run(output, feed_dict={
+          context: [context_tokens for _ in range(batch_size)]
+        })[:, len(context_tokens):]
+        return enc.decode(out[0])
 
-# User Settings loop
-while True:
-    try:
-        poem_settings_input = input("Poem settings (h for commands, e/enter to exit): ")
-    except EOFError:  # Handling inputs such as ctrl C (^C)
-        print("\nEnd of file condition typed, exiting...")
-        exit()
-    if poem_settings_input == "" or poem_settings_input.lower()[0] == "e":
-        break
-    elif poem_settings_input.lower()[0] == "h":  # Help settings
-        print("\nPoem Command list (case insensitive)")
-        print("├h for list of commands")
-        print("├o to set rhyming scheme of poem")
-        print("│└──── Rhyming scheme must have 8 characters, with 4 a's, 2 b's, and 2 c's (e.g aaaabbcc). Case insensitive.")
-        print("├r to randomize order of poem lines")
-        print("├a to turn off AI poem generation")
-        print("├s to change poem syllable rhyming settings")
-        print("│├────n to change number of words to generate (not more words in the poem, will")
-        print("││     increase pool of words which helps with randomness, may decrease quality of rhymes)")
-        print("│└────s to change number of syllables of all rhyming words")
-        print("└e/enter to exit\n")
 
-    elif poem_settings_input.lower() == "r":  # Toggle random poem order
-        if poem_settings["Poem order"] == "random":
-            poem_settings["Poem order"] = "normal"
-            print("Order of poem set to normal")
-        else:
-            poem_settings["Poem order"] = "random"
-            print("Order of poem randomized")
-
-    elif poem_settings_input.lower() == "a":  # Toggle AI poem fill
-        if not poem_settings["AI fill"]:
-            poem_settings["AI fill"] = True
-            print("AI poem fill set to True")
-        else:
-            poem_settings["AI fill"] = False
-            print("AI poem fill set to False")
-
-    elif poem_settings_input.lower()[0] == "o":  # User set poem rhyming scheme
-        if poem_settings["Poem order"] == "random":  # Order cannot be random and user set at the same time
-            poem_settings["Poem order"] = "normal"
-            print("Warning: Cannot have random order and set order at the same time. Order is now set to normal...")
-        print("\nRhyming scheme must have 8 characters, with 4 a's, 2 b's, and 2 c's (e.g aaaabbcc). Case insensitive.\n")
-        while True:  # User set poem rhyming scheme loop
-            try:
-                rhy_scheme = input("Set rhyming scheme of poem (e to exit): ")
-            except EOFError:  # Handling inputs such as ctrl C (^C)
-                print("\nEnd of file condition typed, exiting...")
-                exit()
-            if rhy_scheme == "" or rhy_scheme.lower()[0] == "e":
-                break
-            # Checking number of characters is 8
-            if len(rhy_scheme) == 8:
-                # Checking that there are 4 a's, 2 b's, and 2 c's
-                if rhy_scheme.lower().count("a") == 4 and rhy_scheme.lower().count("b") == 2 and rhy_scheme.lower().count("c") == 2:
-                    poem_settings["Set poem order"] = rhy_scheme.lower()
-                    print(f"Rhyming scheme submitted: {rhy_scheme.lower()}")
-                    break
-                else:
-                    # Defining variables used for error message
-                    num_a = rhy_scheme.lower().count("a")
-                    num_b = rhy_scheme.lower().count("b")
-                    num_c = rhy_scheme.lower().count("c")
-                    print(f"Incorrect ratio of characters (Currently {num_a} a's, {num_b} b's, and {num_c} c's)")
+def get_rhyming_words(word, words_to_return=10, words_to_generate=10, syllables=1, filter_noun=True):
+    # Takes word to rhyme with, number of rhyming words to return, number of words to generate and number of syllables to filter by
+    if words_to_generate < words_to_return:  # If words_to_generate is larger than words_to_return
+        words_to_generate = words_to_return  # Set there to be no randomness in the output
+    apiresult = datamuse.Datamuse().words(rel_rhy=str(word))  # Obtaining list of rhyming words
+    while len(apiresult) < words_to_return:  # Adding words to the list so it fits the number of words to return, will result in duplicate words
+        for i in range(0, len(apiresult)):
+            words = datamuse.Datamuse().words(rel_rhy=str(apiresult[i]["word"]))
+            if words != []:
+                for k in words:
+                    apiresult.append(k)
+                    if len(apiresult) >= words_to_return:
+                        break
+        if apiresult == []:
+            return apiresult
+            break
+    i = 0
+    while i <= syllables:
+        j = 0
+        while j < len(apiresult) and len(apiresult) > words_to_generate:  # Filtering out words with less than the given number of syllables
+            if apiresult[j]["numSyllables"] == i:
+                apiresult.pop(j)
             else:
-                print(f"Check number of characters and try again (Currently {len(rhy_scheme)})")
+                j += 1
+        i += 1
+    if len(apiresult) > words_to_generate:
+        apiresult = apiresult[:words_to_generate]
+    rhyming_words = []
+    for i in apiresult:
+        rhyming_words.append(i['word'])  # Appending only the words to the output list
+    return random.sample(rhyming_words, words_to_return)
 
-    elif poem_settings_input.lower()[0] == "s":  # User set syllable settings
-        while True:  # User set syllable settings loop
-            try:
-                syl_set_input = input("Change syllables settings of rhyming words (e/enter to exit, h for help): ")
-            except EOFError:  # Handling inputs such as ctrl C (^C)
-                print("\nEnd of file condition typed, exiting...")
-                exit()
-            if syl_set_input == "" or syl_set_input.lower()[0] == "e":
-                break
 
-            elif syl_set_input.lower()[0] == "n":  # User set number of words to generate
-                while True:  # User set number of words to generate loop
-                    print("\nFollowing user input must be either an integer (number), e, or enter\n")
-                    try:
-                        num_words = input("Please type number of words to generate: ")
-                    except EOFError:  # Handling inputs such as ctrl C (^C)
-                        print("\nEnd of file condition typed, exiting...")
-                        exit()
-                    if num_words == "" or num_words.lower()[0] == "e":
-                        break
-                    try:  # Making sure user input is an integer
-                        poem_settings["Words to generate"] = int(num_words)
-                        print(f"Number of words set to {int(num_words)}")
-                        break
-                    except ValueError:  # If input is a string or other
-                        print("Please type in either an integer (number), e, or enter")
+def get_date(type, raw_data):  # Takes type (born or died) to figure out significant dates, along with raw data
+    # Different formatted date types are searched for below, ordered inverted based on importance (least important first)
+    # This is done so the date_formatted variable is always defined as accurately as it can be, as it is redefined if a better format is found
+    # This way of doing it is slightly inefficient, but works quite reliably
+    date_format = "%Y-%m-%d"  # the format that all dates are put into
+    date_formatted = "unknown"  # Used if no date can be found
+    # Obtaining the birthdate using regex (should work with almost all birthday prefix formats)
 
-            elif syl_set_input.lower()[0] == "s":  # User set number of syllables
-                while True:  # User set number of syllables loop
-                    print("\nFollowing user input must be either an integer (number), e, or enter\n")
-                    try:
-                        num_syllables = input("Please type number of syllables: ")
-                    except EOFError:  # Handling inputs such as ctrl C (^C)
-                        print("\nEnd of file condition typed, exiting...")
-                        exit()
-                    try:  # Making sure user input is an integer
-                        poem_settings["Number of syllables"] = int(num_syllables)
-                        print(f"Number of syllables set to {int(num_syllables)}")
-                        break
-                    except ValueError:  # If input is a string or other
-                        print("Please type in either an integer (number), e, or enter")
-                    if num_syllables == "" or num_syllables.lower()[0] == "e":
-                        break
+    if type == 'died':  # Set death date to today. Keeps it that way if a death date is not found in the article. Used to calucate current age.
+        date_formatted = datetime.datetime.strptime(datetime.datetime.now().date().strftime(date_format), date_format)
 
-            elif syl_set_input.lower()[0] == "h":   # Help/settings
-                print("\nSyllable Command list (case insensitive)")
-                print("  ├────n to change number of words to generate (not more words in the poem, will")
-                print("  │    increase pool of words which helps with randomness, may decrease quality of rhymes)")
-                print("  └────s to change number of syllables of all rhyming words\n")
-            else:
-                print(f"Unsupported command typed ({syl_set_input}), please check spelling and try again")
+    # just int year type (e.g: 1970)
+    if type == "born":
+        date_raw = re.search(r'(?<=(Date of birth|Born)[^,]*)[0-9]{1,4}', raw_data, flags=re.IGNORECASE)
+    elif type == "died":
+        date_raw = re.search(r'(?<=(Date of death|Died)[^,]*)[0-9]{1,4}', raw_data, flags=re.IGNORECASE)
+    if date_raw is not None:
+        # print("just int year type")
+        if len(date_raw.group(0).replace(" ", "")) <= 4:
+            # Adding a zero to the start of the year if it is less than 3 digits long to fit format
+            year_prefix = (4 - len(date_raw.group(0).split()[0])) * "0"  # e.g 197 -> 0197 to fit in 01-01-0197
+            date_formatted = str(year_prefix) + str(date_raw.group(0).replace(" ", "")) + "-01-01"
+            date_formatted = datetime.datetime.strptime(date_formatted, date_format)
 
-    else:
-        print(f"Unsupported command typed ({poem_settings_input}), please check spelling and try again")
+    # no day, word month, int year type (e.g: January 1970)
+    if type == "born":
+        date_raw = re.search(r'(?<=(Date of birth|Born)[^,]*)\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|(Nov|Dec)(?:ember)?) [0-9]{1,4}', raw_data, flags=re.IGNORECASE)
+    elif type == "died":
+        date_raw = re.search(r'(?<=(Date of death|Died)[^,]*)\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|(Nov|Dec)(?:ember)?) [0-9]{1,4}', raw_data, flags=re.IGNORECASE)
+    if date_raw is not None:
+        # print("no day, word month, int year type")
+        # Adding a zero to the start of the year if it is less than 3 digits long to fit format
+        year_prefix = (4 - len(date_raw.group(0).split()[1])) * "0"  # e.g 197 -> 0197 to fit in 01-01-0197
+        i = datetime.datetime.strptime(date_raw.group(0).split()[0], "%B").month
+        if i < 10:  # Adding a zero to the month if it is less than 10 (e.g 01-1-1970 -> 01-01-1970)
+            date_formatted = str(year_prefix) + str(date_raw.group(0).split()[1]) + "-0" + str(i) + "-01"
+            date_formatted = datetime.datetime.strptime(date_formatted, date_format)  # ValueError: time data '4-08-01' does not match format '%Y-%m-%d'
+        else:
+            date_formatted = str(year_prefix) + str(date_raw.group(0).split()[1]) + "-" + str(i) + "-01"
+            date_formatted = datetime.datetime.strptime(date_formatted, date_format)
 
-print("\nPoem settings to be used:")
-for i in range(len(poem_settings)):  # iterates through the length of the dict and prints the dict title and its contained data
-    print(list(poem_settings)[i] + ": " + str(list(poem_settings.values())[i]))
-print()
+    # word month, int day and int year type (January 1, 1970)
+    if type == "born":
+        date_raw = re.search(r'(?<=(Date of birth|Born)[^,]*)\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|(Nov|Dec)(?:ember)?) [0-9]{1,2}\, [0-9]{1,4}', raw_data, flags=re.IGNORECASE)
+    elif type == "died":
+        date_raw = re.search(r'(?<=(Date of death|Died)[^,]*)\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|(Nov|Dec)(?:ember)?) [0-9]{1,2}\, [0-9]{1,4}', raw_data, flags=re.IGNORECASE)
+    if date_raw is not None:
+        # print("word month, int day and int year type")
+        date_raw = re.sub(',', '', date_raw.group(0), flags=re.IGNORECASE)
+        # Adding a zero to the start of the year if it is less than 3 digits long to fit format
+        year_prefix = (4 - len(date_raw.split()[2])) * "0"  # e.g 197 -> 0197 to fit in 01-01-0197
+        i = datetime.datetime.strptime(date_raw.split()[0], "%B").month
+        if i < 10: # Adding a zero to the month if it is less than 10 (e.g 01-1-1970 -> 01-01-1970)
+            date_formatted = str(year_prefix) + str(date_raw.split()[2]) + "-0" + str(i) + "-" + str(date_raw.split()[1])
+            date_formatted = datetime.datetime.strptime(date_formatted, date_format)  # ValueError: time data '4-08-01' does not match format '%Y-%m-%d'
+        else:
+            date_formatted = str(year_prefix) + str(date_raw.split()[2]) + "-" + str(i) + "-" + str(date_raw.split()[1])
+            date_formatted = datetime.datetime.strptime(date_formatted, date_format)
 
-for full_name in full_name_list:  # Main loop
-    while full_name is None:  # For user input
+    # int day and year, word month type (e.g: 1 january 1970)
+    if type == "born":
+        date_raw = re.search(r'(?<=(Date of birth|Born)[^,]*)[0-9]{1,2} \b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|(Nov|Dec)(?:ember)?) [0-9]{1,4}', raw_data, flags=re.IGNORECASE)
+    elif type == "died":
+        date_raw = re.search(r'(?<=(Date of death|Died)[^,]*)[0-9]{1,2} \b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|(Nov|Dec)(?:ember)?) [0-9]{1,4}', raw_data, flags=re.IGNORECASE)
+    if date_raw is not None:
+        # print("int day and year, word month type")
+        # Adding a zero to the start of the year if it is less than 3 digits long to fit format
+        year_prefix = (4 - len(date_raw.group(0).split()[2])) * "0"  # e.g 197 -> 0197 to fit in 01-01-0197
+        # Converting worded month to digit month, using walrus operator to save space
+        i = datetime.datetime.strptime(date_raw.group(0).split()[1], "%B").month
+        if i < 10:  # Adding a zero to the month if it is less than 10 (e.g 01-1-1970 -> 01-01-1970)
+            # Compiling all data and putting it into format, then properly formatting it just in case
+            date_formatted = str(year_prefix) + str(date_raw.group(0).split()[2]) + "-0" + str(i) + "-" + str(date_raw.group(0).split()[0])
+            date_formatted = datetime.datetime.strptime(date_formatted, date_format)
+        else:
+            date_formatted = str(year_prefix) + str(date_raw.group(0).split()[2]) + "-" + str(i) + "-" + str(date_raw.group(0).split()[0])
+            date_formatted = datetime.datetime.strptime(date_formatted, date_format)
+
+    # Normal birthday type (e.g: 01-01-1970)
+    if type == "born":
+        date_raw = re.search(r'(?<=(Date of birth|Born)[^,]*)[0-9]{1,4}-[0-9]{1,2}-[0-9]{1,2}(?= \))', raw_data, flags=re.IGNORECASE)
+    elif type == "died":
+        date_raw = re.search(r'(?<=(Date of death|Died)[^,]*)[0-9]{1,4}-[0-9]{1,2}-[0-9]{1,2}(?= \))', raw_data, flags=re.IGNORECASE)
+    if date_raw is not None:
+        # print("Normal birthday type")
+        date_formatted = datetime.datetime.strptime(date_raw.group(0), date_format)
+    try:
+        date_found = date_formatted.date()
+    except AttributeError:
+        date_found = "unknown"
+    return date_found
+
+
+def get_data(full_name):
+    # Get first and last name of the person and correct possible formatting errors
+    try:
+        full_name = wikipedia.search(full_name)[0]
         try:
-            full_name = input("Please type a name: ")
-        except EOFError:  # Handling inputs such as ctrl C (^C)
-            print("\nEnd of file condition typed, exiting...")
-            exit()
-        print()
-    all_data = get_data(full_name)  # Running get_data function to obtain all data
-    if all_data is None:
-        continue  # Jumping to the next loop if no data is returned
-    print("Name:", all_data[6].title(), all_data[7].title())
-    print("URL:", all_data[8])
-    birth_date = all_data[0]
-    birth_year = "year"
-    birth_month = None
-    birth_day = None
-    if birth_date != "unknown":
-        birth_year = str(birth_date).split("-")[0]
-        birth_month = str(birth_date).split("-")[1]
-        birth_day = str(birth_date).split("-")[2]
-        print("Birthday:", f"{birth_day}/{birth_month}/{birth_year}")
-    else:
-        print("Birthday: Unknown")
-    age = all_data[1]
-    alive_or_dead = all_data[2]
-    career = all_data[3]
-    gender = all_data[4]
-    subscience = all_data[5]
-    first_name = all_data[6]
-    last_name = all_data[7]
-    if alive_or_dead == "alive":
-        print("Current age:", age, "(Currently alive)")
-    elif alive_or_dead == "dead":
-        print("Age at death:", age)
-    elif alive_or_dead == "unknown":
-        print(f"Age: Unknown (Age could not be obtained for {full_name})")
-    if career == "unknown":
-        print(f"Career: {career.title()} (Career could not be obtained for {full_name})")
-    else:
-        print("Career: ", career.title())
-    if subscience is not None:
-        print("Subscience: ", subscience.title())
-    print(f"Gender: {gender.title()}\n")
+            first_name = re.sub(r'\,|\"|\'|\(|\)|\{|\}|\[|\]|\||\\|\/|\?|\!|\@|\#|\$|\%|\^|\&|\*|\_|\+|\=|\:|\;|\<|\>|\,|\.', '', full_name.split()[0].replace(" ", "").replace(",", ""), flags=re.IGNORECASE).title()
+            last_name = re.sub(r'\,|\"|\'|\(|\)|\{|\}|\[|\]|\||\\|\/|\?|\!|\@|\#|\$|\%|\^|\&|\*|\_|\+|\=|\:|\;|\<|\>|\,|\.', '', re.sub(r'.*? ', '', full_name, 1), flags=re.IGNORECASE).title()
+        except AttributeError:
+            print(f"Please type in a more specific name (currently {full_name})\n")
+            return
+        url = "https://en.wikipedia.org/wiki/" + full_name.replace(" ", "_")
+    except IndexError:
+        print(f"Check spelling of {full_name} and try again\n")
+        return
+    except TimeoutError:
+        print('Connection to wikipedia timed out, please check your internet connection\n')
+        exit()
+    except wikipedia.exceptions.WikipediaException:
+        print("Name cannot be empty, please type in a name\n")
+        return
 
-    all_data = [full_name, first_name, last_name, age, birth_year, alive_or_dead, career, gender, subscience]
-    generate_poem(all_data, poem_settings)  # Parsing all data into the poem generation function
-    print("\n")
+    # Obtaining gender of person using name variable
+    gender = "unknown"
+    if full_name != "":
+        try:
+            page = wikipedia.page(full_name, auto_suggest=False).content
+        except:
+            print('Ambiguous name submitted, please be more specific\n')
+            return
+        try:
+            pronouns = re.search(r'(?<![a-z])she(?![[a-z],\'])|(?<![a-z])her(?![[a-z],\'])|(?<![a-z])he(?![[a-z],\'])|(?<![a-z])his(?![[a-z],\'])', page, flags=re.IGNORECASE).group(0).lower()
+        except AttributeError:
+            print(f"Please type in a more specific name (currently {full_name})\n")
+            return
+        if pronouns == "she" or pronouns == "her":
+            gender = "female"
+        elif pronouns == "he" or pronouns == "his":
+            gender = "male"
+    career = None
+    # Checking if the name is in the format (first_name last_name (career)) and obtaining career from it
+    career_bracket = re.search(r'(?<=\().*?(?=\))', full_name, flags=re.IGNORECASE)
+    if career_bracket is not None:  # e.g John Smith (politician)
+        career = career_bracket.group(0)
+
+    # Fetching the raw HTML content
+    try:
+        html_content = str(urlopen(Request(url, headers={'User-Agent': 'Mozilla/5.0'})).read())
+    except UnicodeEncodeError:  # FIX
+        print(urlopen(Request(url, headers={'User-Agent': 'Mozilla/5.0'})))
+        print(type(urlopen(Request(url, headers={'User-Agent': 'Mozilla/5.0'}))))
+        html_content = urlopen(Request(url, headers={'User-Agent': 'Mozilla/5.0'})).encode('utf-8').strip()
+    # Parsing the html content
+    soup = BeautifulSoup(html_content, "html.parser")
+    # Obtaining the html of the infobox of the person from a table with the class infobox
+    infobox_table = soup.find("table", attrs={"class": "infobox biography vcard"})
+    # Sometimes the html attribute of the infobox is "infobox vcard" or "infobox vcard plainlist" (only for musicians)
+    if infobox_table is None:
+        infobox_table = soup.find("table", attrs={"class": "infobox vcard plainlist"})
+        if infobox_table is not None:
+            career = "musician"
+
+    if infobox_table is None:
+        infobox_table = soup.find("table", attrs={"class": "infobox vcard"})
+
+    try:
+        infobox_table_data = infobox_table.tbody.find_all("tr")  # Only obtaining the data contained in rows in the infobox
+    except:
+        print(f"Note: Data could not be obtained, please check spelling of {full_name} and try again\n")
+        return
+    table_data_html = str(infobox_table_data)
+
+    # Getting rid of html tags and characters using regex
+    table_data_cleaned = re.sub('<[^<]+?>', ' ', table_data_html, flags=re.IGNORECASE).replace("\\n", " ")
+    print(table_data_cleaned)
+    # Replacing any number of spaces in a row with just one (from "    " or "  " to " ")
+    table_data_cleaned = ' '.join(table_data_cleaned.split())
+
+    # obtaining the birth and death date using get_date function
+    birth_date = get_date("born", table_data_cleaned)
+    death_date = get_date("died", table_data_cleaned)
+
+    if death_date == datetime.datetime.strptime(datetime.datetime.now().date().strftime('%Y-%m-%d'), '%Y-%m-%d').date():
+        alive_or_dead = "alive"
+        age = str(relativedelta(death_date, birth_date).years).replace(" ", "")  # Calculating age using relativedelta
+    elif death_date == "unknown":
+        age = "unknown"
+    else:
+        alive_or_dead = "dead"
+        age = str(relativedelta(death_date, birth_date).years).replace(" ", "")  # Calculating age using relativedelta
+
+    if int(age) > 122:  # In case the death date is not obtained correctly, and is set to today
+        age = "unknown"
+
+    # Searching for the keywords of specific careers to find their career
+    science = re.search(r'scientific career', table_data_cleaned, flags=re.IGNORECASE)
+    politics = re.search(r'(in|assumed) office', table_data_cleaned, flags=re.IGNORECASE)
+    musician = re.search(r'musician|instrument|musical', table_data_cleaned, flags=re.IGNORECASE)
+    actor = re.search(r'actor', table_data_cleaned, flags=re.IGNORECASE)
+    comedian = re.search(r'comedian|comedy', table_data_cleaned, flags=re.IGNORECASE)
+    journalist = re.search(r'journalist|journal|radio', table_data_cleaned, flags=re.IGNORECASE)
+    sports = re.search(r'sport|coach|pro(?![a-z])|(?<![a-z])team(?![a-z])', table_data_cleaned, flags=re.IGNORECASE)
+    author = re.search(r'author|writer|poet|novelist|playwright', table_data_cleaned, flags=re.IGNORECASE)
+    military = re.search(r'rank|commands|years of service|allegiance', table_data_cleaned, flags=re.IGNORECASE)
+    artist = re.search(r'movement|notable work', table_data_cleaned, flags=re.IGNORECASE)
+    subscience = None  # Default value
+    # Assigning career
+    if career is None:  # Just in case career is defined through the persons name
+        if science is not None:
+            career = "scientist"
+            # Obtaining a more specific scientific career
+            subscience = re.search(r'(?<=Fields ).+?(?=,)', table_data_cleaned, flags=re.IGNORECASE)
+            if subscience is not None:
+                subscience = str(subscience.group(0)).split(" ")[0].lower()  # 1st result of regex search and 1st word in result
+        elif politics is not None:
+            career = "politician"
+        elif sports is not None:
+            career = "sports person"
+        elif actor is not None:
+            career = "actor"
+        elif musician is not None:
+            career = "musician"
+        elif comedian is not None:
+            career = "comedian"
+        elif journalist is not None:
+            career = "journalist"
+        elif author is not None:
+            career = "author"
+        elif military is not None:
+            career = "military personnel"
+        elif artist is not None:
+            career = "artist"
+        else:
+            career = "unknown"
+
+    return str(birth_date), age, alive_or_dead, career, gender, subscience, first_name, last_name, url
+
+
+def generate_poem(all_data, poem_settings):
+    poem_order = poem_settings["Poem order"]
+    ai_fill = poem_settings["AI fill"]
+    set_order = poem_settings["Set poem order"]
+    words_to_generate = poem_settings["Words to generate"]
+    number_of_syllables = poem_settings["Number of syllables"]
+
+    full_name = all_data[0]
+    first_name = all_data[1]
+    last_name = all_data[2]
+    age = all_data[3]
+    birth_year = all_data[4]
+    alive_or_dead = all_data[5]
+    career = all_data[6]
+    gender = all_data[7]
+    subscience = all_data[8]
+
+    # Rhyming code
+    lastname_initial = last_name[0]
+    lastname_initial_rhyme = get_rhyming_words(lastname_initial, 5, words_to_generate, number_of_syllables)
+
+    if birth_year != "year":
+        # Converting integer year to words using num2words
+        if len(str(birth_year)) == 4:  # Testing if the year has 4 digits
+            # splitting year into two numbers and getting words for these numbers, then combining them
+            full_year_name = num2words(str(birth_year)[0:2]) + " " + num2words(str(birth_year)[2:4])
+            if str(birth_year)[1] == "0" and str(birth_year)[2] == "0":  # Checking for a year with format X00X where X != 0
+                full_year_name = num2words(birth_year)
+            if str(birth_year)[1] != "0" and str(birth_year)[2] == "0":  # Checking for year with format XY0X in which Y != 0
+                # Converting from XY0X format to a worded format (e.g 1902 -> nineteen o'two)
+                full_year_name = num2words(str(birth_year)[0:2]) + " o'" + num2words(str(birth_year)[3])
+        else:  # If the year is less than 4 digits long, word is the entire number
+            full_year_name = num2words(birth_year)
+
+        # Obtaining the last word of birth_year, used to rhyme with in poem
+        year_word_to_rhy = full_year_name.split("-")[len(full_year_name.split("-")) - 1]  # Obtaining the last word of the string
+        if year_word_to_rhy == str(full_year_name):
+            year_word_to_rhy = full_year_name.split()[len(full_year_name.split()) - 1]  # Obtaining the last word of the string
+
+        year_rhymes = get_rhyming_words(year_word_to_rhy, 1, words_to_generate, number_of_syllables)  # Obtaining rhymes
+    else:
+        year_rhymes = ["unknown"]
+        year_word_to_rhy = "unknown"
+
+    if career == "sports person":  # Rhyme with last word of profession instead of both words
+        career_rhymes = get_rhyming_words("person", 5, words_to_generate, number_of_syllables)
+    elif career == "military personnel":  # Rhyme with last word of profession instead of both words
+        career_rhymes = get_rhyming_words("personnel", 5, words_to_generate, number_of_syllables)
+    elif career == "scientist":  # Had to manually set the rhyming words of scientist, as datamuse returns []
+        career_rhymes = ["enlist", "dentist", "insist", "fist",  "rightist", "slightest",  "sweetist", "subsist", "catalyst"]
+    else:
+        career_rhymes = get_rhyming_words(career, 5, words_to_generate, number_of_syllables)
+
+    amount_desc = ["very", "vastly", "hugely", "perfectly", "largely"]
+    positive_desc = ["good", "amazing", "nice", "brilliant", "cool", "fantastic", "awesome", "sensational", "legendary", "epic"]
+    chosen_positive_desc = random.choice(positive_desc)
+
+    # Changing list based on whether the person is alive, dead, male or female
+    auxiliary_verbs = ["they", "their", "was", "were", "lived to", "included"]  # default list if current state is unknown
+    if alive_or_dead == "alive":
+        if gender == "male":
+            auxiliary_verbs = ["he", "his", "is", "are", "is currently", "includes"]
+        if gender == "female":
+            auxiliary_verbs = ["she", "her", "is", "are", "is currently", "includes"]
+
+    if alive_or_dead == "dead":
+        if gender == "male":
+            auxiliary_verbs = ["he", "his", "was", "were", "lived to", "included"]
+        if gender == "female":
+            auxiliary_verbs = ["she", "her", "was", "were", "lived to", "included"]
+
+    # Optional subscience rhyme, extension to line1
+    line1_extension = ""
+    if subscience is not None:
+        line1_extension = ", " + random.choice(amount_desc) + " " + random.choice(positive_desc) + " at " + subscience + " as well"
+    # Optional name rhyme, extension to line2
+    line2_extension = ""
+    name_rhyme = get_rhyming_words(first_name, 5, words_to_generate, number_of_syllables)  # Attempting rhyme with first name
+    if name_rhyme == []:
+        if len(full_name.split()) == 2:
+            name_rhyme = get_rhyming_words(full_name.split()[1], 5, words_to_generate, number_of_syllables)  # Attempting rhyme with last name
+        if name_rhyme == [] and len(full_name.split()) >= 3:
+            name_rhyme = get_rhyming_words(full_name.split()[2], 5, words_to_generate, number_of_syllables)  # Attempting rhyme with middle name
+    if name_rhyme != []:
+        line2_extension = "Owning vast amounts of " + name_rhyme[0] + ", " + name_rhyme[1] + ", and " + name_rhyme[2] + ", " + "\n"
+
+    full_name = re.sub(r'\ *\(.*\)', '', full_name, flags=re.IGNORECASE)
+    # Poem compilation
+    # Pattern A E.G: John                  Smith                         is             a               very                           good                 politician
+    line1 = first_name.title() + " " + last_name.title() + " " + auxiliary_verbs[2] + " a " + random.choice(amount_desc) + " " + chosen_positive_desc + " " + career + line1_extension
+    # Pattern A E.G:              He              is curently               50         years old and            is                              vastly                          intuition
+    line2 = line2_extension + auxiliary_verbs[0].title() + " " + auxiliary_verbs[4] + " " + str(age) + " years old and " + auxiliary_verbs[2] + " " + random.choice(amount_desc) + " " + career_rhymes[0]
+    # Pattern A E.G:              his                                     goodness                is             admired by many,          his                 dispositiionness as well
+    line3 = auxiliary_verbs[1].title() + " " + chosen_positive_desc + "ness " + auxiliary_verbs[2] + " admired by many, " + auxiliary_verbs[1] + " " + career_rhymes[1] + "ness as well"
+    # Pattern A E.G: Some sasy that John      would sometimes go and       commission        ,        condition        , and      juxtaposition
+    line4 = "Some say that " + first_name + " would sometimes go and get a " + career_rhymes[2] + ", " + career_rhymes[3] + ", and " + career_rhymes[4]
+    # Pattern B E.G: John                     S.                  may have owned a               mess
+    line5 = first_name.title() + " " + lastname_initial + "." + " may have owned a " + lastname_initial_rhyme[0]
+    # Pattern B E.G:      His              large collection of things           includes         a             bless                , a             finesse              , a                ness              , and a           chest
+    line6 = auxiliary_verbs[1].title() + " large collection of things " + auxiliary_verbs[5] + " a " + lastname_initial_rhyme[1] + ", a " + lastname_initial_rhyme[2] + ", a " + lastname_initial_rhyme[3] + ", and a " + lastname_initial_rhyme[4]
+    # Pattern C E.G: John         was born in     nineteen seventy
+    line7 = last_name.title() + " was born in " + full_year_name
+    # Pattern C E.G: His                   birth was            great            , not mentioning the      seven trees
+    line8 = auxiliary_verbs[1].title() + " birth was " + chosen_positive_desc + ", not mentioning the " + year_rhymes[0]
+
+    list_of_lines = [line1, line2, line3, line4, line5, line6, line7, line8]
+    a_lines = [line1, line2, line3, line4]
+    b_lines = [line5, line6]
+    c_lines = [line7, line8]
+    raw_poem = ""
+    for i in list_of_lines:
+        raw_poem += i + "\n"
+
+    no_of_words = 0
+    for i in list_of_lines:  # Calculating the number of words in all lines of the poem
+        no_of_words += int(len(i.split()))
+
+    if ai_fill:
+        AI_output = ""
+        testing_no_of_words = no_of_words
+        AI_text = get_predicted_text(raw_poem, model_name='774M', length=512, batch_size=1, temperature=1, top_k=40, top_p=0.9)
+        AI_text = re.sub(r'\<\|endoftext\|\>.*', '', AI_text, flags=re.IGNORECASE)
+        AI_text = re.sub(r'\.(\n| )|\n', '\n', AI_text, flags=re.IGNORECASE)
+        for i in AI_text.split('\n'):
+            if i in AI_output:
+                continue
+            for j in i.split():
+                testing_no_of_words += 1
+            if testing_no_of_words >= 200:
+                break
+            no_of_words = testing_no_of_words
+            AI_output += i + '\n'
+
+    print(f"Poem is {no_of_words} words long\n")
+
+    if poem_order == "random":  # Shuffling list and printing the shuffle
+        random.shuffle(list_of_lines)
+        for i in list_of_lines:
+            print(i)
+        return
+
+    for i in set_order:  # Iterating through set order and printing based on characters
+        if i == "a":
+            print(a_lines[0])
+            a_lines.pop(0)
+        if i == "b":
+            print(b_lines[0])
+            b_lines.pop(0)
+        if i == "c":
+            print(c_lines[0])
+            c_lines.pop(0)
+
+    if ai_fill:
+        print("\n" + AI_output)
