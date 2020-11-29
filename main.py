@@ -2,24 +2,6 @@ from functions import get_data, generate_poem
 import random
 import math
 
-# CRITERIA:
-# display whether they are currently living or dead
-# display their current age or their age at the time of death, correct to within +/- 1 year
-# display their gender as per the article
-# display their profession
-# THEN
-# produce an entertaining rhyming poem (minimum 50 words, maximum 200 words) about the same person,
-# using information from the Wikipedia article like their profession
-# Illustrate and handle non-existing articles.
-
-# TODO:
-# Implement AI poem generation
-# FIX EDGECASE FOR André 3000 as it includes an é (\xe9), thus breaking the mozilla/5.0 decoding. code is on lines 176-179
-# FIX DEATHDATE FOR Yoko Ono, currently says 46 years at death, when really she is not dead and 87 years old
-# It is triggering because john lennon died in 1980 and is searching for that. can be fixed by filtering out values contained in brackets
-# Printout is [   Yoko Ono   ,     \xe5\xb0\x8f\xe9\x87\x8e \xe6\xb4\x8b\xe5\xad\x90   \xe3\x82\xaa\xe3\x83\x8e\xe3\x83\xbb\xe3\x83\xa8\xe3\x83\xbc\xe3\x82\xb3    ,       Ono in 2007   ,   Born    ( 1933-02-18 )  18 February 1933  (age 87)    Tokyo ,  Japan    ,   Education   Gakush\xc5\xabin   ,   Alma mater      Gakushuin University    Sarah Lawrence College      ,   Occupation     Artist  peace activist  singer  songwriter     ,    Spouse(s)      Toshi Ichiyanagi  \n    ​   ​ ( m.  1956;  div.  1962) ​  \n   Anthony Cox  \n    ​   ​ ( m.  1962;  div.  1968) ​  \n   John Lennon  \n    ​   ​ ( m.  1969; died 1980) ​   ,   Children  2, including  Sean Lennon   ,    Musical career   ,   Genres   \n   Avant-garde  \n  downtown  \n performance art \n  experimental  \n rock \n pop \n  electronic   \n   ,   Instruments   \n  Vocals \n percussion \n piano \n keyboards  \n   ,    Years active   1961\xe2\x80\x93present  ,   Labels   \n   Apple  \n  Geffen  \n  Polydor  \n  Rykodisc  \n  Manimal Vinyl  \n  Astralwerks  \n Chimera \n  Secretly Canadian   \n   ,    Associated acts    \n   Toshi Ichiyanagi  \n  John Cage  \n  John Lennon  \n  The Beatles  \n  Plastic Ono Band  \n  the Dirty Mac  \n  Sean Lennon   \n   ,   Website    imaginepeace .com    ,     ,   Signature  ,        ]
-# ADD FIX FOR Joseph stalin, as it takes 18 as a year input, as his birthday is stated as Born	Ioseb Besarionis dze Jughashvili[a] 18 December [O.S. 6] 1878
-
 print("Victorian coding challenge: Wikipedia based data extraction and poem generation")
 
 print("\nIf program is loading for a long time, try pressing any key\n")
