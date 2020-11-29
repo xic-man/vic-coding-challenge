@@ -73,8 +73,9 @@ def get_rhyming_words(word, words_to_return=10, words_to_generate=10, syllables=
     apiresult = datamuse.Datamuse().words(rel_rhy=str(word))  # Obtaining list of rhyming words
     while len(apiresult) < words_to_return:  # Adding words to the list so it fits the number of words to return, will result in duplicate words
         for i in range(0, len(apiresult)):
-            if (t := datamuse.Datamuse().words(rel_rhy=str(apiresult[i]["word"]))) != []:
-                for k in t:
+            words = datamuse.Datamuse().words(rel_rhy=str(apiresult[i]["word"]))
+            if words != []:
+                for k in words:
                     apiresult.append(k)
                     if len(apiresult) >= words_to_return:
                         break
@@ -231,14 +232,14 @@ def get_data(full_name):
             gender = "male"
     career = None
     # Checking if the name is in the format (first_name last_name (career)) and obtaining career from it
-    if (i := re.search(r'(?<=\().*?(?=\))', full_name, flags=re.IGNORECASE)) is not None:  # e.g John Smith (politician)
-        career = i.group(0)
+    career_bracket = re.search(r'(?<=\().*?(?=\))', full_name, flags=re.IGNORECASE)
+    if career_bracket is not None:  # e.g John Smith (politician)
+        career = career_bracket.group(0)
 
     # Fetching the raw HTML content
     try:
         html_content = str(urlopen(Request(url, headers={'User-Agent': 'Mozilla/5.0'})).read())
     except UnicodeEncodeError:  # FIX
-        print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
         print(urlopen(Request(url, headers={'User-Agent': 'Mozilla/5.0'})))
         print(type(urlopen(Request(url, headers={'User-Agent': 'Mozilla/5.0'}))))
         html_content = urlopen(Request(url, headers={'User-Agent': 'Mozilla/5.0'})).encode('utf-8').strip()
