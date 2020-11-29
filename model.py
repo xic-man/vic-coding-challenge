@@ -2,6 +2,7 @@
 import numpy as np
 import tensorflow.compat.v1 as tf
 tf.get_logger().setLevel('ERROR')
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 def default_hparams():
     hparams = {}
