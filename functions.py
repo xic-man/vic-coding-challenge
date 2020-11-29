@@ -434,25 +434,25 @@ def generate_poem(all_data, poem_settings):
     for i in list_of_lines:  # Calculating the number of words in all lines of the poem
         no_of_words += int(len(i.split()))
 
-    if ai_fill:
+    if ai_fill:  # if user set ai_fill
         AI_output = ""
         testing_no_of_words = no_of_words
-        AI_text = get_predicted_text(raw_poem, model_name='774M', length=512, batch_size=1, temperature=1, top_k=40, top_p=0.9)
-        AI_text = re.sub(r'\<\|endoftext\|\>.*', '', AI_text, flags=re.IGNORECASE)
-        AI_text = re.sub(r'\.(\n| )|\n', '\n', AI_text, flags=re.IGNORECASE)
-        for i in AI_text.split('\n'):
-            if i in AI_output:
+        AI_text = get_predicted_text(raw_poem, model_name='774M', length=512, batch_size=1, temperature=1, top_k=40, top_p=0.9)  # gets predicted text from GPT-2 AI
+        AI_text = re.sub(r'\<\|endoftext\|\>.*', '', AI_text, flags=re.IGNORECASE)  # removes text after <|endoftext|> flag
+        AI_text = re.sub(r'\.(\n| )|\n', '\n', AI_text, flags=re.IGNORECASE)  # seperates each sentence into different lines
+        for i in AI_text.split('\n'):  # iterates though sentence
+            if i in AI_output:  # skips line if duplicate
                 continue
-            for j in i.split():
+            for j in i.split():  # increases word count for each word in sentence
                 testing_no_of_words += 1
-            if testing_no_of_words >= 200:
+            if testing_no_of_words >= 200:  # breaks if sentence would put poem over 200 words
                 break
-            no_of_words = testing_no_of_words
-            AI_output += i + '\n'
+            no_of_words = testing_no_of_words  # updates true number of words if sentence fits
+            AI_output += i + '\n'  # adds sentence to rest of poem
 
-    print(f"Poem: ({no_of_words} words long)\n")
+    print(f"Poem: ({no_of_words} words long)\n")  # prints number of words in total poem
 
-    if poem_order == "random":  # Shuffling list and printing the shuffle
+    if poem_order == "random":  # if poem is set to random print shuffled lines
         random.shuffle(list_of_lines)
         for i in list_of_lines:
             print(i)
@@ -469,5 +469,5 @@ def generate_poem(all_data, poem_settings):
             print(c_lines[0])
             c_lines.pop(0)
 
-    if ai_fill:
+    if ai_fill:  # if user set ai_fill print AI generated poem
         print("\n" + AI_output)
