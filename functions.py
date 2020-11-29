@@ -116,7 +116,7 @@ def get_date(type, raw_data):  # Takes type (born or died) to figure out signifi
     if type == "born":
         date_raw = re.search(r'(?<=(Date of birth|Born)[^,]*)[0-9]{1,4}', raw_data, flags=re.IGNORECASE)
     elif type == "died":
-        date_raw = re.search(r'(?<=(Date of death|Died)[^,]*)[0-9]{1,4}', raw_data, flags=re.IGNORECASE)
+        date_raw = re.search(r'(?<=(Date of death|Died)[^,]*)[0-9]{1,4}', re.sub(r'\(.*?\)', '', raw_data, flags=re.IGNORECASE), flags=re.IGNORECASE)
     if date_raw is not None:
         # print("just int year type")
         if len(date_raw.group(0).replace(" ", "")) <= 4:
@@ -464,7 +464,7 @@ def generate_poem(all_data, poem_settings):
             no_of_words = testing_no_of_words
             AI_output += i + '\n'
 
-    print(f"Poem is {no_of_words} words long\n")
+    print(f"Poem: ({no_of_words} words long)\n")
 
     if poem_order == "random":  # Shuffling list and printing the shuffle
         random.shuffle(list_of_lines)
