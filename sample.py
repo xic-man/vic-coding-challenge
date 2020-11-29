@@ -1,5 +1,6 @@
 # code from https://github.com/timschott/gpt-2
 import tensorflow.compat.v1 as tf
+tf.get_logger().setLevel('ERROR')
 
 import model
 
