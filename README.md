@@ -21,4 +21,8 @@ Please email Xavier Cohen at COH0002@brunswick.vic.edu.au or Sandro Mortimer at 
 ## Thanks
 Thanks to OpenAI for the GPT-2 AI and thanks to github user timschott for making a fork of GPT-2 that is compatible with newer versions of Tensorflow.
 
+The original GPT-2 AI is available at: https://github.com/openai/gpt-2
+
+And timschott's fork is available at: https://github.com/timschott/gpt-2
+
 Thanks to Google Colab for the use of their GPU's for the testing and deployment of the GPT-2 model
