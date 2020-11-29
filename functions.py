@@ -239,12 +239,7 @@ def get_data(full_name):
         career = career_bracket.group(0)
 
     # Fetching the raw HTML content
-    try:
-        html_content = str(urlopen(Request(url, headers={'User-Agent': 'Mozilla/5.0'})).read())
-    except UnicodeEncodeError:  # FIX
-        print(urlopen(Request(url, headers={'User-Agent': 'Mozilla/5.0'})))
-        print(type(urlopen(Request(url, headers={'User-Agent': 'Mozilla/5.0'}))))
-        html_content = urlopen(Request(url, headers={'User-Agent': 'Mozilla/5.0'})).encode('utf-8').strip()
+    html_content = str(urlopen(Request(url, headers={'User-Agent': 'Mozilla/5.0'})).read())
     # Parsing the html content
     soup = BeautifulSoup(html_content, "html.parser")
     # Obtaining the html of the infobox of the person from a table with the class infobox
