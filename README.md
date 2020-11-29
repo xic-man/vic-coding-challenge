@@ -11,12 +11,31 @@ https://colab.research.google.com/drive/10xj6TBdCWHB4gs4nwAeAeEM0FCbYAZxz?usp=sh
 
 ## To run the script in google colab:
 1. Go to the top bar --> Runtime --> Change runtime type --> Hardware accelerator --> GPU --> Save
-2. Press Connect (top right)
+![](images/step%201.png)
+![](images/step%202.png)
+
+2. Press Connect (top right) and wait until it shows the ram and disk usage
+
+![](images/step%203.png)
+
+![](images/step%204.png)
+
 3. Press the small run button on the left of the first block to install dependencies, code and model  
+
+![](images/step%205.png)
+
 4. Run second code block to run the main script
 
+![](images/step%206.png)
+
 ## Out of memory errors
-If an out of memory (OOM) error is returned, please factory reset runtime (Top bar --> Runtime --> Factory reset runtime) until you get a GPU with more than 8gb of ram. The current GPU can be checked by running the code block containing the command !nvidia-smi (Located at the bottom of the notebook).
+If an out of memory (OOM) error is returned, please factory reset runtime (Top bar --> Runtime --> Factory reset runtime) until you get a GPU with more than 8gb of ram. 
+
+![](images/step%207.png)
+
+The current GPU can be checked by running the code block containing the command !nvidia-smi (Located at the bottom of the notebook).
+
+![](images/step%208.png)
 
 ## Contact details
 Please email Xavier Cohen at COH0002@brunswick.vic.edu.au or Sandro Mortimer at MOR0034@brunswick.vic.edu.au if you have any difficulties or questions.
