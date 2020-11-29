@@ -9,10 +9,12 @@ import wikipedia  # To obtain the gender of the person
 from num2words import num2words  # To generate a worded version of their birth year for rhyming
 
 import json
-import os
 import numpy as np
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow.compat.v1 as tf
 tf.get_logger().setLevel('ERROR')
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 import model, sample, encoder  # importing the AI functions
 
