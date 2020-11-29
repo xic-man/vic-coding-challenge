@@ -467,7 +467,7 @@ def generate_poem(all_data, poem_settings):
         AI_text = get_predicted_text(raw_poem, model_name='345M', length=512, batch_size=1, temperature=0.9, top_k=40, top_p=0.9)
         AI_text = re.sub(r'\<\|endoftext\|\>.*', '', AI_text, flags=re.IGNORECASE)
         for i in AI_text.split('. '):
-            if AI_output.find(i):
+            if i in AI_output:
                 continue
             for j in i.split():
                 no_of_words += 1
