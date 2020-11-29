@@ -447,7 +447,6 @@ def generate_poem(all_data, poem_settings):
         no_of_words += int(len(i.split()))
 
     if ai_fill:
-        print()
         AI_output = ""
         testing_no_of_words = no_of_words
         AI_text = get_predicted_text(raw_poem, model_name='774M', length=512, batch_size=1, temperature=0.9, top_k=40, top_p=0.9)
@@ -463,7 +462,7 @@ def generate_poem(all_data, poem_settings):
             no_of_words = testing_no_of_words
             AI_output += i + '\n'
 
-    print(f"Poem is {no_of_words} words long")
+    print(f"Poem is {no_of_words} words long\n")
 
     if poem_order == "random":  # Shuffling list and printing the shuffle
         random.shuffle(list_of_lines)
@@ -483,4 +482,4 @@ def generate_poem(all_data, poem_settings):
             c_lines.pop(0)
 
     if ai_fill:
-        print(AI_output)
+        print("\n" + AI_output)
