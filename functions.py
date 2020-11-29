@@ -162,7 +162,7 @@ def get_date(type, raw_data):  # Takes type (born or died) to figure out signifi
 
     # int day and year, word month type (e.g: 1 january 1970)
     if type == "born":
-        date_raw = re.search(r'(?<=(Date of birth|Born)[^,]*)[0-9]{1,2} \b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|(Nov|Dec)(?:ember)?) [0-9]{1,4}', raw_data, flags=re.IGNORECASE)
+        date_raw = re.search(r'(?<=(Date of birth|Born)[^,]*)[0-9]{1,2} \b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|(Nov|Dec)(?:ember)?) [0-9]{1,4}', re.sub(' \[.*?\]', '', raw_data, flags=re.IGNORECASE), flags=re.IGNORECASE)
     elif type == "died":
         date_raw = re.search(r'(?<=(Date of death|Died)[^,]*)[0-9]{1,2} \b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|(Nov|Dec)(?:ember)?) [0-9]{1,4}', raw_data, flags=re.IGNORECASE)
     if date_raw is not None:
