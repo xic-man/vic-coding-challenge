@@ -267,7 +267,7 @@ def get_data(full_name):
 
     # Getting rid of html tags and characters using regex
     table_data_cleaned = re.sub('<[^<]+?>', ' ', table_data_html, flags=re.IGNORECASE).replace("\\n", " ")
-    print(table_data_cleaned)
+    # print(table_data_cleaned)
     # Replacing any number of spaces in a row with just one (from "    " or "  " to " ")
     table_data_cleaned = ' '.join(table_data_cleaned.split())
 
