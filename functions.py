@@ -8,64 +8,62 @@ import random  # To shuffle lists and select at random from a list
 import wikipedia  # To obtain the gender of the person
 from num2words import num2words  # To generate a worded version of their birth year for rhyming
 
-import json
-import numpy as np
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-import tensorflow.compat.v1 as tf
-tf.get_logger().setLevel('ERROR')
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-
-import model, sample, encoder  # importing the AI functions
-
-
-def get_predicted_text(raw_text, model_name='345M', length=512, batch_size=1, temperature=0.9, top_k=40, top_p=0.9):
-    """
-    Run the sample_model
-    :model_name=117M : String, which model to use
-    :seed=None : Integer seed for random number generators, fix seed to
-     reproduce results
-    :nsamples=0 : Number of samples to return, if 0, continues to
-     generate samples indefinately.
-    :batch_size=1 : Number of batches (only affects speed/memory).
-    :length=None : Number of tokens in generated text, if None (default), is
-     determined by model hyperparameters
-    :temperature=1 : Float value controlling randomness in boltzmann
-     distribution. Lower temperature results in less random completions. As the
-     temperature approaches zero, the model will become deterministic and
-     repetitive. Higher temperature results in more random completions.
-    :top_k=0 : Integer value controlling diversity. 1 means only 1 word is
-     considered for each step (token), resulting in deterministic completions,
-     while 40 means 40 words are considered at each step. 0 (default) is a
-     special setting meaning no restrictions. 40 generally is a good value.
-    :top_p=0.0 : Float value controlling diversity. Implements nucleus sampling,
-     overriding top_k if set to a value > 0. A good setting is 0.9.
-    """
-    enc = encoder.get_encoder(model_name)
-    hparams = model.default_hparams()
-    with open(os.path.join('models', model_name, 'hparams.json')) as f:
-        dict2 = json.load(f)
-        for key, value in hparams.items():
-            hparams[key] = dict2[key]
-
-    with tf.Session(graph=tf.Graph()) as sess:
-        context = tf.placeholder(tf.int32, [batch_size, None])
-        output = sample.sample_sequence(
-            hparams=hparams, length=length,
-            context=context,
-            batch_size=batch_size,
-            temperature=temperature, top_k=top_k, top_p=top_p
-        )
-
-        saver = tf.train.Saver()
-        ckpt = tf.train.latest_checkpoint(os.path.join('models', model_name))
-        saver.restore(sess, ckpt)
-
-        context_tokens = enc.encode(raw_text)
-        out = sess.run(output, feed_dict={
-          context: [context_tokens for _ in range(batch_size)]
-        })[:, len(context_tokens):]
-        return enc.decode(out[0])
+# import json
+# import os
+# import numpy as np
+# import tensorflow.compat.v1 as tf
+# tf.get_logger().setLevel('ERROR')
+#
+# import model, sample, encoder  # importing the AI functions
+#
+#
+# def get_predicted_text(raw_text, model_name='345M', length=512, batch_size=1, temperature=0.9, top_k=40, top_p=0.9):
+#     """
+#     Run the sample_model
+#     :model_name=117M : String, which model to use
+#     :seed=None : Integer seed for random number generators, fix seed to
+#      reproduce results
+#     :nsamples=0 : Number of samples to return, if 0, continues to
+#      generate samples indefinately.
+#     :batch_size=1 : Number of batches (only affects speed/memory).
+#     :length=None : Number of tokens in generated text, if None (default), is
+#      determined by model hyperparameters
+#     :temperature=1 : Float value controlling randomness in boltzmann
+#      distribution. Lower temperature results in less random completions. As the
+#      temperature approaches zero, the model will become deterministic and
+#      repetitive. Higher temperature results in more random completions.
+#     :top_k=0 : Integer value controlling diversity. 1 means only 1 word is
+#      considered for each step (token), resulting in deterministic completions,
+#      while 40 means 40 words are considered at each step. 0 (default) is a
+#      special setting meaning no restrictions. 40 generally is a good value.
+#     :top_p=0.0 : Float value controlling diversity. Implements nucleus sampling,
+#      overriding top_k if set to a value > 0. A good setting is 0.9.
+#     """
+#     enc = encoder.get_encoder(model_name)
+#     hparams = model.default_hparams()
+#     with open(os.path.join('models', model_name, 'hparams.json')) as f:
+#         dict2 = json.load(f)
+#         for key, value in hparams.items():
+#             hparams[key] = dict2[key]
+#
+#     with tf.Session(graph=tf.Graph()) as sess:
+#         context = tf.placeholder(tf.int32, [batch_size, None])
+#         output = sample.sample_sequence(
+#             hparams=hparams, length=length,
+#             context=context,
+#             batch_size=batch_size,
+#             temperature=temperature, top_k=top_k, top_p=top_p
+#         )
+#
+#         saver = tf.train.Saver()
+#         ckpt = tf.train.latest_checkpoint(os.path.join('models', model_name))
+#         saver.restore(sess, ckpt)
+#
+#         context_tokens = enc.encode(raw_text)
+#         out = sess.run(output, feed_dict={
+#           context: [context_tokens for _ in range(batch_size)]
+#         })[:, len(context_tokens):]
+#         return enc.decode(out[0])
 
 
 def get_rhyming_words(word, words_to_return=10, words_to_generate=10, syllables=1, filter_noun=True):
@@ -266,8 +264,8 @@ def get_data(full_name):
     table_data_html = str(infobox_table_data)
 
     # Getting rid of html tags and characters using regex
-    table_data_cleaned = re.sub('<[^<]+?>', ' ', table_data_html, flags=re.IGNORECASE)
-    # print(table_data_cleaned)
+    table_data_cleaned = re.sub('<[^<]+?>', ' ', table_data_html, flags=re.IGNORECASE).replace("\\n", " ")
+    print(table_data_cleaned)
     # Replacing any number of spaces in a row with just one (from "    " or "  " to " ")
     table_data_cleaned = ' '.join(table_data_cleaned.split())
 
@@ -448,21 +446,21 @@ def generate_poem(all_data, poem_settings):
     for i in list_of_lines:  # Calculating the number of words in all lines of the poem
         no_of_words += int(len(i.split()))
 
-    if ai_fill:
-        AI_output = ""
-        testing_no_of_words = no_of_words
-        AI_text = get_predicted_text(raw_poem, model_name='774M', length=512, batch_size=1, temperature=0.9, top_k=40, top_p=0.9)
-        AI_text = re.sub(r'\<\|endoftext\|\>.*', '', AI_text, flags=re.IGNORECASE)
-        AI_text = re.sub(r'\.(\n| )|\n', '\n', AI_text, flags=re.IGNORECASE)
-        for i in AI_text.split('\n'):
-            if i in AI_output:
-                continue
-            for j in i.split():
-                testing_no_of_words += 1
-            if testing_no_of_words >= 200:
-                break
-            no_of_words = testing_no_of_words
-            AI_output += i + '\n'
+    # if ai_fill:
+    #     AI_output = ""
+    #     testing_no_of_words = no_of_words
+    #     AI_text = get_predicted_text(raw_poem, model_name='774M', length=512, batch_size=1, temperature=0.9, top_k=40, top_p=0.9)
+    #     AI_text = re.sub(r'\<\|endoftext\|\>.*', '', AI_text, flags=re.IGNORECASE)
+    #     AI_text = re.sub(r'\.(\n| )|\n', '\n', AI_text, flags=re.IGNORECASE)
+    #     for i in AI_text.split('\n'):
+    #         if i in AI_output:
+    #             continue
+    #         for j in i.split():
+    #             testing_no_of_words += 1
+    #         if testing_no_of_words >= 200:
+    #             break
+    #         no_of_words = testing_no_of_words
+    #         AI_output += i + '\n'
 
     print(f"Poem is {no_of_words} words long\n")
 
@@ -483,5 +481,5 @@ def generate_poem(all_data, poem_settings):
             print(c_lines[0])
             c_lines.pop(0)
 
-    if ai_fill:
-        print("\n" + AI_output)
+    # if ai_fill:
+    #     print("\n" + AI_output)
