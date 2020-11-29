@@ -162,7 +162,7 @@ def get_date(type, raw_data):  # Takes type (born or died) to figure out signifi
     if date_raw is not None:
         # Adding a zero to the start of the year if it is less than 3 digits long to fit format
         year_prefix = (4 - len(date_raw.group(0).split()[2])) * "0"  # e.g 197 -> 0197 to fit in 01-01-0197
-        # Converting worded month to digit month, using walrus operator to save space
+        # Converting worded month to digit month
         i = datetime.datetime.strptime(date_raw.group(0).split()[1], "%B").month
         if i < 10:  # Adding a zero to the month if it is less than 10 (e.g 01-1-1970 -> 01-01-1970)
             # Compiling all data and putting it into format, then properly formatting it just in case
