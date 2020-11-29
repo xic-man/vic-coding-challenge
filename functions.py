@@ -446,22 +446,6 @@ def generate_poem(all_data, poem_settings):
     for i in list_of_lines:  # Calculating the number of words in all lines of the poem
         no_of_words += int(len(i.split()))
 
-    if poem_order == "random":  # Shuffling list and printing the shuffle
-        random.shuffle(list_of_lines)
-        for i in list_of_lines:
-            print(i)
-        return
-
-    for i in set_order:  # Iterating through set order and printing based on characters
-        if i == "a":
-            print(a_lines[0])
-            a_lines.pop(0)
-        if i == "b":
-            print(b_lines[0])
-            b_lines.pop(0)
-        if i == "c":
-            print(c_lines[0])
-            c_lines.pop(0)
     if ai_fill:
         print()
         AI_output = ""
@@ -478,5 +462,25 @@ def generate_poem(all_data, poem_settings):
                 break
             no_of_words = testing_no_of_words
             AI_output += i + '\n'
+
+    print(f"Poem is {no_of_words} words long")
+
+    if poem_order == "random":  # Shuffling list and printing the shuffle
+        random.shuffle(list_of_lines)
+        for i in list_of_lines:
+            print(i)
+        return
+
+    for i in set_order:  # Iterating through set order and printing based on characters
+        if i == "a":
+            print(a_lines[0])
+            a_lines.pop(0)
+        if i == "b":
+            print(b_lines[0])
+            b_lines.pop(0)
+        if i == "c":
+            print(c_lines[0])
+            c_lines.pop(0)
+
+    if ai_fill:
         print(AI_output)
-    print(f"\nAbove poem is {no_of_words} words long")
