@@ -115,7 +115,6 @@ def get_date(type, raw_data):  # Takes type (born or died) to figure out signifi
     elif type == "died":
         date_raw = re.search(r'(?<=(Date of death|Died)[^,]*)[0-9]{1,4}', re.sub(r'\(.*?\)', '', raw_data, flags=re.IGNORECASE), flags=re.IGNORECASE)
     if date_raw is not None:
-        # print("just int year type")
         if len(date_raw.group(0).replace(" ", "")) <= 4:
             # Adding a zero to the start of the year if it is less than 3 digits long to fit format
             year_prefix = (4 - len(date_raw.group(0).split()[0])) * "0"  # e.g 197 -> 0197 to fit in 01-01-0197
@@ -128,7 +127,6 @@ def get_date(type, raw_data):  # Takes type (born or died) to figure out signifi
     elif type == "died":
         date_raw = re.search(r'(?<=(Date of death|Died)[^,]*)\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|(Nov|Dec)(?:ember)?) [0-9]{1,4}', raw_data, flags=re.IGNORECASE)
     if date_raw is not None:
-        # print("no day, word month, int year type")
         # Adding a zero to the start of the year if it is less than 3 digits long to fit format
         year_prefix = (4 - len(date_raw.group(0).split()[1])) * "0"  # e.g 197 -> 0197 to fit in 01-01-0197
         i = datetime.datetime.strptime(date_raw.group(0).split()[0], "%B").month
@@ -145,7 +143,6 @@ def get_date(type, raw_data):  # Takes type (born or died) to figure out signifi
     elif type == "died":
         date_raw = re.search(r'(?<=(Date of death|Died)[^,]*)\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|(Nov|Dec)(?:ember)?) [0-9]{1,2}\, [0-9]{1,4}', raw_data, flags=re.IGNORECASE)
     if date_raw is not None:
-        # print("word month, int day and int year type")
         date_raw = re.sub(',', '', date_raw.group(0), flags=re.IGNORECASE)
         # Adding a zero to the start of the year if it is less than 3 digits long to fit format
         year_prefix = (4 - len(date_raw.split()[2])) * "0"  # e.g 197 -> 0197 to fit in 01-01-0197
@@ -163,7 +160,6 @@ def get_date(type, raw_data):  # Takes type (born or died) to figure out signifi
     elif type == "died":
         date_raw = re.search(r'(?<=(Date of death|Died)[^,]*)[0-9]{1,2} \b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|(Nov|Dec)(?:ember)?) [0-9]{1,4}', raw_data, flags=re.IGNORECASE)
     if date_raw is not None:
-        # print("int day and year, word month type")
         # Adding a zero to the start of the year if it is less than 3 digits long to fit format
         year_prefix = (4 - len(date_raw.group(0).split()[2])) * "0"  # e.g 197 -> 0197 to fit in 01-01-0197
         # Converting worded month to digit month, using walrus operator to save space
@@ -182,7 +178,6 @@ def get_date(type, raw_data):  # Takes type (born or died) to figure out signifi
     elif type == "died":
         date_raw = re.search(r'(?<=(Date of death|Died)[^,]*)[0-9]{1,4}-[0-9]{1,2}-[0-9]{1,2}(?= \))', raw_data, flags=re.IGNORECASE)
     if date_raw is not None:
-        # print("Normal birthday type")
         date_formatted = datetime.datetime.strptime(date_raw.group(0), date_format)
     try:
         date_found = date_formatted.date()
@@ -259,7 +254,6 @@ def get_data(full_name):
 
     # Getting rid of html tags and characters using regex
     table_data_cleaned = re.sub('<[^<]+?>', ' ', table_data_html, flags=re.IGNORECASE).replace("\\n", " ")
-    # print(table_data_cleaned)
     # Replacing any number of spaces in a row with just one (from "    " or "  " to " ")
     table_data_cleaned = ' '.join(table_data_cleaned.split())
 
