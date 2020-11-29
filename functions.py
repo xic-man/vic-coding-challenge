@@ -11,7 +11,7 @@ from num2words import num2words  # To generate a worded version of their birth y
 import json
 import numpy as np
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # suppresses tensorflow info and warning messages from showing to the end user
 import tensorflow.compat.v1 as tf
 tf.get_logger().setLevel('ERROR')
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
@@ -21,14 +21,11 @@ import model, sample, encoder  # importing the AI functions
 
 def get_predicted_text(raw_text, model_name='345M', length=512, batch_size=1, temperature=1, top_k=40, top_p=0.9):
     """
-    Run the sample_model
-    :model_name=117M : String, which model to use
+    :model_name=345M : String, which model to use
     :seed=None : Integer seed for random number generators, fix seed to
      reproduce results
-    :nsamples=0 : Number of samples to return, if 0, continues to
-     generate samples indefinately.
     :batch_size=1 : Number of batches (only affects speed/memory).
-    :length=None : Number of tokens in generated text, if None (default), is
+    :length=512 : Number of tokens in generated text, if None (default), is
      determined by model hyperparameters
     :temperature=1 : Float value controlling randomness in boltzmann
      distribution. Lower temperature results in less random completions. As the
@@ -41,14 +38,14 @@ def get_predicted_text(raw_text, model_name='345M', length=512, batch_size=1, te
     :top_p=0.0 : Float value controlling diversity. Implements nucleus sampling,
      overriding top_k if set to a value > 0. A good setting is 0.9.
     """
-    enc = encoder.get_encoder(model_name)
+    enc = encoder.get_encoder(model_name)  # Loads downloaded model from the filesystem
     hparams = model.default_hparams()
     with open(os.path.join('models', model_name, 'hparams.json')) as f:
         dict2 = json.load(f)
         for key, value in hparams.items():
             hparams[key] = dict2[key]
 
-    with tf.Session(graph=tf.Graph()) as sess:
+    with tf.Session(graph=tf.Graph()) as sess:  # Creates tensorflow model with hyperparameters
         context = tf.placeholder(tf.int32, [batch_size, None])
         output = sample.sample_sequence(
             hparams=hparams, length=length,
@@ -57,15 +54,15 @@ def get_predicted_text(raw_text, model_name='345M', length=512, batch_size=1, te
             temperature=temperature, top_k=top_k, top_p=top_p
         )
 
-        saver = tf.train.Saver()
+        saver = tf.train.Saver()  # adds loaded model to tensorflow
         ckpt = tf.train.latest_checkpoint(os.path.join('models', model_name))
         saver.restore(sess, ckpt)
 
-        context_tokens = enc.encode(raw_text)
-        out = sess.run(output, feed_dict={
+        context_tokens = enc.encode(raw_text)  # encodes poem
+        out = sess.run(output, feed_dict={  # runs encoded poem though tensorflow model to create prediction
           context: [context_tokens for _ in range(batch_size)]
         })[:, len(context_tokens):]
-        return enc.decode(out[0])
+        return enc.decode(out[0])  # returns predicted text
 
 
 def get_rhyming_words(word, words_to_return=10, words_to_generate=10, syllables=1, filter_noun=True):
