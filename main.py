@@ -233,7 +233,7 @@ for full_name in full_name_list:  # Main loop
     if career == "unknown":
         print(f"Career: {career.title()} (Career could not be obtained for {full_name})")
     else:
-        print("Career: ", career.title())
+        print("Career:", career.title())
     if subscience is not None:
         print("Subscience: ", subscience.title())
     print(f"Gender: {gender.title()}\n")
