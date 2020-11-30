@@ -261,7 +261,10 @@ def get_data(full_name):
 
     if death_date == datetime.datetime.strptime(datetime.datetime.now().date().strftime('%Y-%m-%d'), '%Y-%m-%d').date():
         alive_or_dead = "alive"
-        age = str(relativedelta(death_date, birth_date).years).replace(" ", "")  # Calculating age using relativedelta
+        if isinstance(birth_date, datetime.date):
+            age = str(relativedelta(death_date, birth_date).years).replace(" ", "")  # Calculating age using relativedelta
+        else:
+            death_date = "unknown"
     elif death_date == "unknown":
         age = "unknown"
     else:
@@ -367,7 +370,8 @@ def generate_poem(all_data, poem_settings):
         career_rhymes = ["enlist", "dentist", "insist", "fist",  "rightist", "slightest",  "sweetist", "subsist", "catalyst"]
     else:
         career_rhymes = get_rhyming_words(career, 5, words_to_generate, number_of_syllables)
-
+    if career_rhymes == []:
+        career_rhymes = ["unknown", "unknown", "unknown", "unknown", "unknown"]
     amount_desc = ["very", "vastly", "hugely", "perfectly", "largely"]
     positive_desc = ["good", "amazing", "nice", "brilliant", "cool", "fantastic", "awesome", "sensational", "legendary", "epic"]
     chosen_positive_desc = random.choice(positive_desc)
