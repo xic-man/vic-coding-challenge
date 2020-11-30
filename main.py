@@ -68,11 +68,11 @@ poem_settings = {
 # User Settings loop
 while True:
     try:
-        poem_settings_input = input("Poem settings (h for commands, e/enter to exit): ")
+        poem_settings_input = input("Poem settings (h for help, d for default): ")
     except EOFError:  # Handling inputs such as ctrl C (^C)
         print("\nEnd of file condition typed, exiting...")
         exit()
-    if poem_settings_input == "" or poem_settings_input.lower()[0] == "e":
+    if poem_settings_input == "" or poem_settings_input.lower()[0] == "d":
         break
     elif poem_settings_input.lower()[0] == "h":  # Help settings
         print("\nPoem Command list (case insensitive)")
@@ -85,7 +85,7 @@ while True:
         print("│├────n to change number of words to generate (not more words in the poem, will")
         print("││     increase pool of words which helps with randomness, may decrease quality of rhymes)")
         print("│└────s to change number of syllables of all rhyming words")
-        print("└e/enter to exit\n")
+        print("└d for default\n")
 
     elif poem_settings_input.lower() == "r":  # Toggle random poem order
         if poem_settings["Poem order"] == "random":
