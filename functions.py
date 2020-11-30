@@ -22,8 +22,6 @@ import model, sample, encoder  # importing the AI functions
 def get_predicted_text(raw_text, model_name='345M', length=512, batch_size=1, temperature=1, top_k=40, top_p=0.9):
     """
     :model_name=345M : String, which model to use
-    :seed=None : Integer seed for random number generators, fix seed to
-     reproduce results
     :batch_size=1 : Number of batches (only affects speed/memory).
     :length=512 : Number of tokens in generated text, if None (default), is
      determined by model hyperparameters
