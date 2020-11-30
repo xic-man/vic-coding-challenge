@@ -18,22 +18,22 @@ tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 import model, sample, encoder  # importing the AI functions
 
-
-def get_predicted_text(raw_text, model_name='345M', length=512, batch_size=1, temperature=1, top_k=40, top_p=0.9):
+def get_predicted_text(raw_text, model_name='774M', length=512, batch_size=1, temperature=1, top_k=40, top_p=0.9):
     """
-    :model_name=345M : String, which model to use
-    :batch_size=1 : Number of batches (only affects speed/memory).
+    :raw_text : String, text to make predicted on
+    :model_name=774M : String, which model to use
     :length=512 : Number of tokens in generated text, if None (default), is
      determined by model hyperparameters
+    :batch_size=1 : Number of batches (only affects speed/memory).
     :temperature=1 : Float value controlling randomness in boltzmann
      distribution. Lower temperature results in less random completions. As the
      temperature approaches zero, the model will become deterministic and
      repetitive. Higher temperature results in more random completions.
-    :top_k=0 : Integer value controlling diversity. 1 means only 1 word is
+    :top_k=40 : Integer value controlling diversity. 1 means only 1 word is
      considered for each step (token), resulting in deterministic completions,
-     while 40 means 40 words are considered at each step. 0 (default) is a
+     while 40 means 40 words are considered at each step. 0 is a
      special setting meaning no restrictions. 40 generally is a good value.
-    :top_p=0.0 : Float value controlling diversity. Implements nucleus sampling,
+    :top_p=0.9 : Float value controlling diversity. Implements nucleus sampling,
      overriding top_k if set to a value > 0. A good setting is 0.9.
     """
     enc = encoder.get_encoder(model_name)  # Loads downloaded model from the filesystem
