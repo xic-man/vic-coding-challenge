@@ -48,7 +48,6 @@ while True:
             "guido van rossum",
             "bjarne stroustrup",
             "neil degrasse tyson"
-            #  "André 3000"
         ]
         break
     else:
