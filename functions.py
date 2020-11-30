@@ -280,7 +280,7 @@ def get_data(full_name):
     actor = re.search(r'actor', table_data_cleaned, flags=re.IGNORECASE)
     comedian = re.search(r'comedian|comedy', table_data_cleaned, flags=re.IGNORECASE)
     journalist = re.search(r'journalist|journal|radio', table_data_cleaned, flags=re.IGNORECASE)
-    sports = re.search(r'sport|coach|pro(?![a-z])|(?<![a-z])team(?![a-z])', table_data_cleaned, flags=re.IGNORECASE)
+    sports = re.search(r'sport|coach|pro(?![a-z])|(?<![a-z])team(?![a-z])|champion|player|trophy', table_data_cleaned, flags=re.IGNORECASE)
     author = re.search(r'author|writer|poet|novelist|playwright', table_data_cleaned, flags=re.IGNORECASE)
     military = re.search(r'rank|commands|years of service|allegiance', table_data_cleaned, flags=re.IGNORECASE)
     artist = re.search(r'movement|notable work', table_data_cleaned, flags=re.IGNORECASE)
